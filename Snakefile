@@ -74,7 +74,7 @@ rule junc_call:
     outputdir = "{outputdir}",
     run_files = RUN_FILES,
     samples = "{samples}",
-    library_type = LIBRARY_TYPE
+    library_type = LIBRARY_TYPE,
     library_end = LIBRARY_END
 
   log:
