@@ -103,6 +103,8 @@ if library_type == "PB" and library_end == "3prime":
     cb_map = {str(Seq(cb).reverse_complement()): cb for cb in cell_barcodes}
 else:
     cb_map = {cb: cb for cb in cell_barcodes}
+    
+cell_barcodes_rc = list(cb_map.keys())
 
 
 def write_output(res_sc, output_file_path): 
