@@ -28,6 +28,8 @@ if library_type == "ONT":
 else:
     cell_barcode_tag = "CB"
     umi_tag = "XM"
+library_end = sys.argv[4] if len(sys.argv) > 4 else "3prime"
+
 def find_introns_single_cell(read_iterator, strandtag = "GS", cell_barcode_tag = cell_barcode_tag, umi_tag = umi_tag, total_reads=None):
     intron_counts = {}
     exon_counts = {}
@@ -97,12 +99,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from Bio.Seq import Seq
 
-if library_type != "ONT":
+if library_type == "PB" and library_end == "3prime":
     cb_map = {str(Seq(cb).reverse_complement()): cb for cb in cell_barcodes}
 else:
     cb_map = {cb: cb for cb in cell_barcodes}
-
-cell_barcodes_rc = list(cb_map.keys())
 
 
 def write_output(res_sc, output_file_path): 
