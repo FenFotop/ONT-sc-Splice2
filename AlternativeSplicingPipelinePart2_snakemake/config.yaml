@@ -13,4 +13,6 @@ OUTPUTDIR:
 METADATADIR:
   "/sample_metadata_ont/"
 LIBRARY_TYPE:
-  "ONT"
+  "PB"
+LIBRARY_END:
+"5prime" #or 3prime
