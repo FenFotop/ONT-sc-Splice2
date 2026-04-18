@@ -11,6 +11,7 @@ JOB_NAME = config["JOB_NAME"]
 OUTPUTDIR = config["OUTPUTDIR"]
 METADATADIR = config["METADATADIR"]
 LIBRARY_TYPE = config["LIBRARY_TYPE"]
+LIBRARY_END = config["LIBRARY_END"]
 
 rule all:
   input:
@@ -74,6 +75,8 @@ rule junc_call:
     run_files = RUN_FILES,
     samples = "{samples}",
     library_type = LIBRARY_TYPE
+    library_end = LIBRARY_END
+
   log:
     "{workdir}/{outputdir}/logs/{samples}_junc_call.txt"
   threads:
@@ -87,7 +90,7 @@ rule junc_call:
     cd {params.samples}/leafcutter_outputs_{params.samples}
 
     # Run the python junction calling script
-    python {params.run_files}/count_introns_exons_ONT_and_PB.py {input} {params.samples} {params.library_type}
+    python {params.run_files}/count_introns_exons_ONT_and_PB.py {input} {params.samples} {params.library_type} {params.library_end}
     echo "junction calling done"
     """
 
