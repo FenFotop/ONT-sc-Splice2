@@ -86,7 +86,20 @@ exons <- as.data.frame(exons_result)
 # Optionally, exons_result is already 'ungrouped' since data.table doesn't explicitly group the data
 #exon.counts[exons$exon_coordinates, -1]
 print("Final step")
-exons$total.cov <- rowSums(exon.counts[exons$exon_coordinates, -1])
+#exons$total.cov <- rowSums(exon.counts[exons$exon_coordinates, -1])
+# Compute rowSums in chunks to avoid loading the full subset into memory
 
-#write.csv(exons, file=paste0("/gpfs/commons/groups/landau_lab/SF3B1_splice_project/21.exon.centric.calling/",patient,"/leafcutter_outputs/exon.meta/",patient,"_all.exons.info.wRIannotation.csv"))
+coords <- exons$exon_coordinates
+n <- length(coords)
+chunk_size <- 10000
+total_cov <- numeric(n)
+
+for (i in seq(1, n, by = chunk_size)) {
+  idx <- i:min(i + chunk_size - 1, n)
+  total_cov[idx] <- rowSums(exon.counts[coords[idx], -1, drop = FALSE])
+}
+exons$total.cov <- total_cov
+
+
+#write.csv(exons, file=paste0("/path/SF3B1_splice_project/21.exon.centric.calling/",patient,"/leafcutter_outputs/exon.meta/",patient,"_all.exons.info.wRIannotation.csv"))
 fwrite(exons, file=paste0(output_folder,output_prefix,"_all.exons.info.wRIannotation.csv"), sep=",")
