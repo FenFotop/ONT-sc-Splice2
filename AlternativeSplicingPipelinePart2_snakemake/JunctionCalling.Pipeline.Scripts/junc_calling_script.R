@@ -147,13 +147,15 @@ all.introns$end_match <- NA
 
 all.introns[, `:=` (start_match = as.integer(start_match), end_match = as.integer(end_match))]
 
-# Function to get the closest match
+# Function to get the closest match (vectorised binary search — O(m log m + n log n))
 find_closest <- function(query, db) {
-  sapply(query, function(x) {
-    if (length(db) == 0) return(NA_integer_)
-    sorted_db <- db[order(abs(x - db))]
-    return(sorted_db[1])
-  })
+  if (length(db) == 0) return(rep(NA_integer_, length(query)))
+  db_sorted <- sort(db)
+  idx <- findInterval(query, db_sorted)
+  lo  <- pmax(1L, idx)
+  hi  <- pmin(length(db_sorted), idx + 1L)
+  ifelse(abs(query - db_sorted[lo]) <= abs(query - db_sorted[hi]),
+         db_sorted[lo], db_sorted[hi])
 }
 
 # Loop over chromosomes
@@ -203,9 +205,10 @@ library(foreach)
 library(doParallel)
 
 
-# Set up parallel backend
-total_cores <- length(parallelly::availableWorkers()) 
-use_cores <- max(1, total_cores - 2) # Leave two cores free for system stability
+# Set up parallel backend — respect SLURM allocation to avoid oversubscription
+total_cores <- length(parallelly::availableWorkers())
+slurm_cpus  <- suppressWarnings(as.integer(Sys.getenv("SLURM_CPUS_PER_TASK")))
+use_cores   <- if (!is.na(slurm_cpus) && slurm_cpus > 0L) max(1L, slurm_cpus - 1L) else max(1L, total_cores - 2L)
 print(paste0("Using ", use_cores, " cores"))
 cl <- makeCluster(use_cores)
 registerDoParallel(cl)
@@ -266,9 +269,11 @@ results <- foreach(clu = clusters, .packages = c("data.table", "dplyr")) %dopar%
   
   # Loop over introns to fill in details
   for (intron in seq_len(nrow(cluster))) {
-    fprime_intron <- fprime[cluster[intron], on = .(chr, start), allow.cartesian = TRUE]
-    tprime_intron <- tprime[cluster[intron], on = .(chr, end), allow.cartesian = TRUE]
-    bothSS_intron <- bothSSClu[cluster[intron], on = .(chr, start, end), allow.cartesian = TRUE]
+    cur_start     <- cluster$start[intron]
+    cur_end       <- cluster$end[intron]
+    fprime_intron <- fprime[start == cur_start]
+    tprime_intron <- tprime[end == cur_end]
+    bothSS_intron <- bothSSClu[start == cur_start & end == cur_end]
     
     transcripts[[intron]] <- intersect(tprime_intron$transcript, fprime_intron$transcript)
     

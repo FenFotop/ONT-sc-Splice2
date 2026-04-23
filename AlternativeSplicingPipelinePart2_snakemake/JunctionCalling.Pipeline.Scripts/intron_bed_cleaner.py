@@ -19,24 +19,14 @@ output = sys.argv[2]
 #output = '/Users/lkluegel/Downloads/leafviz_all_introns_cleaned.bed'
 
 df = pd.read_csv(file, sep='\t', header=None)
-#get list of genes
-genes = list(set(list(df.iloc[:,3])))
 
 df_list = []
-#iterate over the genes
-#for each gene find all tags
 
 count = 0
 start_time = time.time()
-for gene in genes:
-    curr_df = df[df[3] == gene]
-    tags = list(set(list(curr_df[9])))
-    tags = [x for x in tags if str(x) != 'nan']
-    #iterate over the relevant tags
-    #count how often exon 1 appears for each tag in the gene, that is how often
-    #the tag is duplicated
-    for tag in tags:
-        curr_tag_df = curr_df[curr_df[9] == tag]
+for gene, curr_df in df.groupby(df[3], sort=False):
+    # groupby drops NaN keys by default, equivalent to the original nan filter
+    for tag, curr_tag_df in curr_df.groupby(curr_df[9], sort=False):
         num_exon_1 = curr_tag_df[7].value_counts()[1]
         #if there is a duplicate, find the duplicates
         if num_exon_1 > 1:

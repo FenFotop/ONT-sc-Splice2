@@ -86,48 +86,32 @@ for chrom_strand,r in intron_counts.items():
     print(chrom_strand,len(r))
 
 import gzip
-from Bio.Seq import Seq
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 import os
-
-# Prepare cell barcodes
-import gzip
-import os
-import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from Bio.Seq import Seq
 
 if library_type == "PB" and library_end == "3prime":
     cb_map = {str(Seq(cb).reverse_complement()): cb for cb in cell_barcodes}
 else:
     cb_map = {cb: cb for cb in cell_barcodes}
-    
+
 cell_barcodes_rc = list(cb_map.keys())
 
 
-def write_output(res_sc, output_file_path): 
-    with gzip.open(output_file_path, "wt", encoding='utf-8') as f: 
-        # Write header
-        f.write("chrom\tstart\tend\tstrand")
-        for cb_rc in cell_barcodes_rc: 
-            f.write("\t%s" % cb_rc)   # print reverse complement
-        f.write("\n")
-
-        # Write counts
-        for chrom_strand, r in res_sc.items(): 
+def write_output(res_sc, output_file_path):
+    with gzip.open(output_file_path, "wt", encoding='utf-8') as f:
+        f.write("chrom\tstart\tend\tstrand\t" + "\t".join(cell_barcodes_rc) + "\n")
+        for chrom_strand, r in res_sc.items():
             for junc, counts in r.items():
-                f.write("%s\t%i\t%i\t%s" % (chrom_strand[0], junc[0], junc[1], chrom_strand[1]))
-                for cb_rc in cell_barcodes_rc: 
-                    cb_orig = cb_map[cb_rc]        # original barcode used as key
-                    f.write("\t%i" % counts[cb_orig])
-                f.write("\n")
+                row = "%s\t%i\t%i\t%s\t%s\n" % (
+                    chrom_strand[0], junc[0], junc[1], chrom_strand[1],
+                    "\t".join(str(counts[cb_map[cb_rc]]) for cb_rc in cell_barcodes_rc)
+                )
+                f.write(row)
 
-write_output(exon_counts, sys.argv[2] + "_exons.tsv.gz") 
-write_output(intron_counts, sys.argv[2] + "_introns.tsv.gz") 
+write_output(exon_counts, sys.argv[2] + "_exons.tsv.gz")
+write_output(intron_counts, sys.argv[2] + "_introns.tsv.gz")
 
-import numpy as np
 umi_counts = list(umis.values())
 print("Average value for the number of reads per umi:")
 print(np.mean(umi_counts)) # knowles: 1.21 , Paulina: 1.611843008688349 					## Average value for the number of reads per umi's 

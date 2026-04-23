@@ -219,17 +219,20 @@ def relevant_exon_finder_skipping(row, start_end, exons):
 def splice_annotator(input_df, ref_df, ref_df_clean):
     '''combines all functions to annotate'''
     start_time = time.time()
-    genes = list(set(list(input_df['gene'])))
-    print('num genes = %s' %len(genes))
+    print('num genes = %s' % input_df['gene'].nunique())
     output_df_list = list()
     count = 0
-    for gene in genes:
-        curr_input_df = input_df[input_df['gene'] == gene]
-        curr_ref_df = ref_df[ref_df[3] == gene]
+    # pre-group reference dataframes once instead of scanning per gene
+    ref_groups       = {g: grp for g, grp in ref_df.groupby(ref_df[3], sort=False)}
+    ref_clean_groups = {g: grp for g, grp in ref_df_clean.groupby(ref_df_clean[3], sort=False)}
+    empty_ref        = ref_df.iloc[0:0]
+    empty_ref_clean  = ref_df_clean.iloc[0:0]
+    for gene, curr_input_df in input_df.groupby('gene', sort=False):
+        curr_input_df = curr_input_df.copy()
+        curr_ref_df = ref_groups.get(gene, empty_ref)
         tags = transcript_tag_finder(curr_ref_df)
         tags = tag_sorter(tags)
         num_tags = len(tags)
-        curr_input_df = input_df[input_df['gene'] == gene].copy()
         curr_input_df['numTags'] = len(tags)
         curr_input_df['tags'] = ', '.join(tags)
         nans = [np.nan]*curr_input_df.shape[0]
@@ -260,7 +263,7 @@ def splice_annotator(input_df, ref_df, ref_df_clean):
             curr_input_df['endClass'] = nans
             curr_input_df['startDistance'] = nans
             curr_input_df['endDistance'] = nans
-        curr_ref_df_skipping = ref_df_clean[ref_df_clean[3] == gene]
+        curr_ref_df_skipping = ref_clean_groups.get(gene, empty_ref_clean)
         tags_skipping = transcript_tag_finder_skipping(curr_ref_df_skipping)
         tags_skipping = tag_sorter_skipping(tags_skipping)
         num_tags_skipping = len(tags_skipping)
