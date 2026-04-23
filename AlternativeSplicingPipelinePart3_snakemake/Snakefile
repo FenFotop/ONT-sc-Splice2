@@ -21,7 +21,12 @@ COMP1 = config["COMP1"]
 COMP2 = config["COMP2"]
 NCHUNK = config["N_CHUNK"]
 INTRONBED = config["INTRONBED_FILE"]
-FINAL_FOLDER_NAME = config["COMP1"] + "_vs_" + config["COMP2"] + config["CELL_GROUPS_COLUMN"] 
+FINAL_FOLDER_NAME = config["COMP1"] + "_vs_" + config["COMP2"] + config["CELL_GROUPS_COLUMN"]
+TEST_METHOD = config.get("TEST_METHOD", "logOR")
+NPERM_GTEST = config.get("N_PERM_GTEST", 3000)
+PERM_SH     = "run_comb_patient_gtest_ind_celltypes_merge_counts_2WT.sh" if TEST_METHOD == "gtest" else "run_comb_patient_permute_ind_celltypes_merge_counts_2WT.sh"
+PERM_SH_IR  = "run_multi_patient_gtest_merge_counts_exon.sh"             if TEST_METHOD == "gtest" else "run_multi_patient_permute_merge_counts_exon.sh"
+NPERM_VAL   = NPERM_GTEST if TEST_METHOD == "gtest" else NPERM
 
 rule all:
   input:
@@ -124,11 +129,12 @@ rule run_split:
     comp_groups_column = COMP_GROUPS_COLUMN,
     cell_groups_column = CELL_GROUPS_COLUMN,
     samples = SAMPLES,
-    nperm = NPERM,
+    nperm = NPERM_VAL,
     junc_cov_thresh = JUNC_COV_THRESH,
     comp1 = COMP1,
     comp2 = COMP2,
-    nchunk = NCHUNK
+    nchunk = NCHUNK,
+    perm_sh = PERM_SH
   log:
     "{workdir}/{outputdir}/logs/{grouplist}_split_clusters.txt"
   threads:
@@ -155,7 +161,7 @@ rule run_split:
       # Process each folder dynamically
       for i in $(seq 1 $total_folders); do
         sbatch -W --job-name={params.job_name}_"$i" \
-          {params.run_files}/run_comb_patient_permute_ind_celltypes_merge_counts_2WT.sh \
+          {params.run_files}/{params.perm_sh} \
           {params.workdir}/{params.outputdir}/{params.grouplist}/split_cluster_files/split_"$i" \
           {params.cell_metadata} \
           {params.comp_groups_column} \
@@ -310,10 +316,11 @@ rule run_split_IR:
     comp_groups_column = COMP_GROUPS_COLUMN,
     cell_groups_column = CELL_GROUPS_COLUMN,
     samples = SAMPLES,
-    nperm = NPERM,
+    nperm = NPERM_VAL,
     junc_cov_thresh = JUNC_COV_THRESH,
     comp1 = COMP1,
-    comp2 = COMP2
+    comp2 = COMP2,
+    perm_sh_ir = PERM_SH_IR
   log:
     "{workdir}/{outputdirIR}/logs/{grouplist}_split_clusters_IR.txt"
   threads:
@@ -339,7 +346,7 @@ rule run_split_IR:
       # Process each folder dynamically
       for i in $(seq 1 $total_folders); do
         sbatch -W --job-name={params.job_name}_"$i" \
-          {params.run_files}/run_multi_patient_permute_merge_counts_exon.sh \
+          {params.run_files}/{params.perm_sh_ir} \
           {params.workdir}/{params.outputdir}/{params.grouplist}/split_cluster_files_IR/split_"$i" \
           {params.cell_metadata} \
           {params.comp_groups_column} \

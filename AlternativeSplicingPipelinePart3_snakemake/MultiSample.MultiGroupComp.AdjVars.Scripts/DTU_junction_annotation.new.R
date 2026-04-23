@@ -35,9 +35,9 @@ three.data[which(((three.data$startClass == "main" & three.data$endClass == "not
   (three.data$fivep_distance > (-100) & three.data$fivep_distance < 0)), "Final_Verdict"] <- "Cryptic_fiveprime"
 three.data[which(three.data$startClass == "not_main_3_prime" & three.data$endClass == "not_main_5_prime"), "Final_Verdict"] <- "cryptic_unanchored"
 three.data[which(three.data$startClass == "not_main_5_prime" & three.data$endClass == "not_main_3_prime"), "Final_Verdict"] <- "cryptic_unanchored"
-three.data[which(((three.data$startClass == "not_main_3_prime" & three.data$end == "main") | (three.data$startClass == "main" & three.data$endClass == "not_main_3_prime")) &
+three.data[which(((three.data$startClass == "not_main_3_prime" & three.data$endClass == "main") | (three.data$startClass == "main" & three.data$endClass == "not_main_3_prime")) &
   (three.data$threep_distance < (-100) | three.data$threep_distance > 0)), "Final_Verdict"] <- "Alternative_threeprime"
-three.data[which(((three.data$startClass == "not_main_5_prime" & three.data$end == "main") | (three.data$startClass == "main" & three.data$endClass == "not_main_5_prime")) &
+three.data[which(((three.data$startClass == "not_main_5_prime" & three.data$endClass == "main") | (three.data$startClass == "main" & three.data$endClass == "not_main_5_prime")) &
   (three.data$fivep_distance < (-100) | three.data$fivep_distance > 0)), "Final_Verdict"] <- "Alternative_fiveprime"
 
 table(three.data$Final_Verdict)
@@ -57,9 +57,9 @@ five.data[which(((five.data$startClass == "main" & five.data$endClass == "not_ma
   (five.data$fivep_distance > (-100) & five.data$fivep_distance < 0)), "Final_Verdict"] <- "Cryptic_fiveprime"
 five.data[which(five.data$startClass == "not_main_3_prime" & five.data$endClass == "not_main_5_prime"), "Final_Verdict"] <- "cryptic_unanchored"
 five.data[which(five.data$startClass == "not_main_5_prime" & five.data$endClass == "not_main_3_prime"), "Final_Verdict"] <- "cryptic_unanchored"
-five.data[which(((five.data$startClass == "not_main_3_prime" & five.data$end == "main") | (five.data$startClass == "main" & five.data$endClass == "not_main_3_prime")) &
+five.data[which(((five.data$startClass == "not_main_3_prime" & five.data$endClass == "main") | (five.data$startClass == "main" & five.data$endClass == "not_main_3_prime")) &
   (five.data$threep_distance < (-100) | five.data$threep_distance > 0)), "Final_Verdict"] <- "Alternative_threeprime"
-five.data[which(((five.data$startClass == "not_main_5_prime" & five.data$end == "main") | (five.data$startClass == "main" & five.data$endClass == "not_main_5_prime")) &
+five.data[which(((five.data$startClass == "not_main_5_prime" & five.data$endClass == "main") | (five.data$startClass == "main" & five.data$endClass == "not_main_5_prime")) &
   (five.data$fivep_distance < (-100) | five.data$fivep_distance > 0)), "Final_Verdict"] <- "Alternative_fiveprime"
 table(five.data$Final_Verdict)
 

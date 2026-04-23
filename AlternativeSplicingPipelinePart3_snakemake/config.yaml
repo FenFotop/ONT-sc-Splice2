@@ -25,6 +25,10 @@ GROUPLIST:
 OUTPUTDIR:
   "output_dir"
 JUNC_COV_THRESH:
-  5
+  10
 N_CHUNK:
   5
+TEST_METHOD:
+  "logOR"   # "logOR" = original permutation (100k shuffles), "gtest" = G-test with r2dtable (faster)
+N_PERM_GTEST:
+  3000       # permutations used only when TEST_METHOD = "gtest"
