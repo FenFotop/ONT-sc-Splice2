@@ -1,0 +1,442 @@
+---
+title: "Splicing results report"
+author:
+    - "Mariela Cortés López"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+   res_path: ""
+   res_path_ir: ""
+   outpath: ""
+   contrast_id: ""
+   dpsi: ""
+   fdr: ""
+output:
+  html_document:
+    code_folding: hide
+  highlight: tango
+  number_sections: no
+  toc: yes
+  toc_depth: 2
+  toc_float:
+    collapsed: no
+    smooth_scroll: yes
+---
+
+
+
+```{r source}
+library(tidyverse)
+library(data.table)
+library(lessR)
+```
+
+
+
+```{r load_and_merge_results}
+res_path <- as.character(params$res_path)
+res_path_ir <- as.character(params$res_path_ir)
+outpath <- as.character(params$outpath)
+contrast_id <- as.character(params$contrast_id)
+fdr_thr <- as.numeric(params$fdr)
+dpsi_thr <- as.numeric(params$dpsi)
+
+cat(res_path)
+alt3p <- read.table(paste0(
+  res_path,
+  "/logOR_within_cell_type_ALT_3P_Junctions_with_threshold_info.txt"
+), row.names = 1)
+colnames(alt3p) <- gsub("three\\.", "", colnames(alt3p))
+
+alt5p <- read.table(paste0(
+  res_path,
+  "/logOR_within_cell_type_ALT_5P_Junctions_with_threshold_info.txt"
+), row.names = 1)
+colnames(alt5p) <- gsub("five\\.", "", colnames(alt5p))
+
+ir_file <- paste0(
+  res_path_ir,
+  "/logOR_within_cell_type_IR_Junctions_with_threshold_info.txt"
+)
+
+if (file.exists(ir_file)) {
+  ir <- read.table(ir_file, row.names = 1)
+  colnames(ir) <- gsub("three\\.", "", colnames(ir))
+  merge_events <- rbindlist(list("3p" = alt3p, "5p" = alt5p, "IR" = ir), use.names = T, idcol = "set", fill = T)
+  merge_events$intron_junction <- ifelse(is.na(merge_events$intron_junction),
+    merge_events$intron.junction,
+    merge_events$intron_junction
+  )
+}
+if (file.exists(ir_file) == F) {
+  merge_events <- rbindlist(list("3p" = alt3p, "5p" = alt5p), use.names = T, idcol = "set", fill = T)
+}
+
+merge_events <- merge_events %>%
+  # Group by the specified columns
+  # Group by the specified columns
+  group_by(five_prime_ID, three_prime_ID) %>%
+  # Sort within each group by criteria: p.value, odds not being NA, and Final_Verdict.w.skipping
+  arrange(pvalue, desc(!is.na(obs.logOR.ratio)), Final_Verdict.w.skipping != "Canonical") %>%
+  # Select the first row in each group after sorting
+  slice(1) %>%
+  # Ungroup to return a regular dataframe
+  ungroup()
+
+
+merge_events <- merge_events %>%
+  mutate(Splicing_Event_Class = ifelse(Final_Verdict.w.skipping %in%
+    c("Alternative_fiveprime", "Cryptic_fiveprime"), "Alt5ss",
+  ifelse(Final_Verdict.w.skipping %in%
+    c("Alternative_threeprime", "Cryptic_threeprime"), "Alt3ss",
+  Final_Verdict.w.skipping
+  )
+  ))
+
+
+merge_events$adj_pval <- p.adjust(merge_events$pvalue, method = "BH")
+merge_events$intron_junction <- ifelse(is.na(merge_events$intron_junction),
+  merge_events$intron.junction,
+  merge_events$intron_junction
+)
+
+data.table::fwrite(merge_events, paste0(outpath, contrast_id, "merge_events.txt"),
+  quote = F, row.names = F
+)
+```
+
+
+## P value distribution 
+
+```{r}
+phist <- ggplot(merge_events, aes(pvalue)) +
+  geom_histogram(bins = 100) +
+  theme_bw() +
+  ggtitle("All p values")
+
+padjhist <- ggplot(merge_events, aes(adj_pval)) +
+  geom_histogram(bins = 100) +
+  theme_bw() +
+  ggtitle("All adjusted p values")
+
+phist3 <- ggplot(alt3p, aes(pvalue)) +
+  geom_histogram(bins = 100) +
+  theme_bw() +
+  ggtitle("3' p values")
+
+phist5 <- ggplot(alt5p, aes(pvalue)) +
+  geom_histogram(bins = 100) +
+  theme_bw() +
+  ggtitle("5' p values")
+
+library(patchwork)
+(phist + padjhist) / (phist3 + phist5)
+```
+
+
+## All events expression 
+
+
+## All events, significance pvalue only 
+
+```{r, fig.width=15, fig.height=7}
+library(EnhancedVolcano)
+
+RAW_VOLCANO <- EnhancedVolcano(merge_events,
+  lab = merge_events$gene,
+  x = "dPSI",
+  y = "pvalue", pCutoff = 0.05, FCcutoff = 5, xlab = bquote(~ Log[2] ~ "fold change"),
+  pointSize = 1,
+  labSize = 3,
+  colAlpha = 1,
+  legendPosition = "right",
+  legendLabSize = 6,
+  legendIconSize = 2,
+  drawConnectors = TRUE,
+  widthConnectors = 0.75, title = contrast_id, subtitle = "All genes"
+)
+
+
+RAW_VOLCANO
+```
+
+
+## All events, significance p adjust
+
+```{r, fig.width=15, fig.height=7}
+
+RAW_VOLCANO <- EnhancedVolcano(merge_events,
+  lab = merge_events$gene,
+  x = "dPSI",
+  y = "adj_pval", pCutoff = 0.05, FCcutoff = 5, xlab = bquote(~ Log[2] ~ "fold change"),
+  pointSize = 1,
+  labSize = 3,
+  colAlpha = 1,
+  legendPosition = "right",
+  legendLabSize = 6,
+  legendIconSize = 2,
+  drawConnectors = TRUE,
+  widthConnectors = 0.75, title = contrast_id, subtitle = "All genes"
+)
+
+
+RAW_VOLCANO
+```
+
+## All events class
+
+```{r eval=TRUE, include=TRUE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(scales)
+
+# Summarize the counts of each Splicing_Event_Class and calculate percentages
+donut_data <- merge_events %>%
+  count(Splicing_Event_Class) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+# Create the donut chart
+ggplot(donut_data, aes(x = 2, y = percentage, fill = Splicing_Event_Class)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  xlim(1, 2.5) +  # Adjusts the width for the donut shape
+  theme_void() +  # Removes background, grid, and axis text
+  geom_text(aes(label = paste0(round(percentage, 1), "%")),
+            position = position_stack(vjust = 0.5)) +
+  labs(fill = "Splicing Event Class", title = "Distribution of Splicing Event Classes") +
+  scale_fill_brewer(palette = "Set3")  # Optional: set color palette
+
+```
+
+
+## All non-canonical events 
+
+```{r}
+alt_events <- merge_events %>%
+  filter(Final_Verdict.w.skipping != "Canonical")
+```
+
+
+## Expression in all non-canonical (novel) events
+
+```{r, fig.width=15, fig.height=7}
+
+
+RAW_VOLCANO <- EnhancedVolcano(merge_events,
+  lab = merge_events$gene,
+  x = "dPSI",
+  y = "adj_pval", pCutoff = 0.05, FCcutoff = 5, xlab = bquote(~ Log[2] ~ "fold change"),
+  pointSize = 1,
+  labSize = 3,
+  colAlpha = 1,
+  legendPosition = "right",
+  legendLabSize = 6,
+  legendIconSize = 2,
+  drawConnectors = TRUE,
+  widthConnectors = 0.75, title = contrast_id, subtitle = "All genes"
+)
+
+RAW_VOLCANO
+```
+
+
+# GSEA analysis 
+
+FDR < `r fdr_thr` dPSI > `r dpsi_thr`
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+
+# Get Significant events ----------------------------------------------
+sig_events <- merge_events %>% filter(adj_pval < {{ fdr_thr }} & abs(dPSI) > {{ dpsi_thr }})
+
+up_events <- sig_events %>%
+  filter(dPSI > 0) %>%
+  dplyr::select(gene, intron_junction, dPSI) %>%
+  arrange(desc(abs(dPSI)))
+
+down_events <- sig_events %>%
+  filter(dPSI < 0) %>%
+  dplyr::select(gene, intron_junction, dPSI) %>%
+  arrange(desc(abs(dPSI)))
+
+down_events_val <- down_events[!duplicated(down_events$gene), ]$dPSI
+names(down_events_val) <- down_events[!duplicated(down_events$gene), ]$gene
+
+
+up_events_val <- up_events[!duplicated(up_events$gene), ]$dPSI
+names(up_events_val) <- up_events[!duplicated(up_events$gene), ]$gene
+```
+
+
+## BP ontologies 
+
+```{r}
+library(msigdbr)
+library(fgsea)
+BP_db <- msigdbr(
+  species = "Homo sapiens",
+  category = "C5", subcategory = "GO:BP"
+)
+
+
+fgsea_sets <- BP_db %>% split(x = .$gene_symbol, f = .$gs_name)
+
+fgseaResdown <- fgsea(fgsea_sets,
+  stats = down_events_val, minSize = 7,
+  maxSize = 500, nproc = 1,
+  eps = 0
+)
+
+fgseaResup <- fgsea(fgsea_sets,
+  stats = up_events_val, scoreType = "pos", minSize = 7,
+  maxSize = 500, nproc = 1,
+  eps = 0
+)
+```
+
+
+```{r, fig.width=10}
+topPathwaysUp <- fgseaResdown[ES > 0][head(order(pval), n = 5), pathway]
+topPathwaysDown <- fgseaResup[ES < 0][head(order(pval), n = 5), pathway]
+topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+```
+
+
+Up regulated events: 
+
+```{r}
+plotGseaTable(fgsea_sets[topPathways], up_events_val, fgseaResup,
+  gseaParam = 0.5
+)
+```
+
+```{r}
+edge_genes <- fgseaResup[ES > 0][head(order(pval), n = 5), ]$leadingEdge
+names(edge_genes) <- fgseaResup[ES > 0][head(order(pval), n = 5), ]$pathway
+
+(edge_genes)
+```
+
+Downregulated events
+
+```{r}
+plotGseaTable(fgsea_sets[topPathways], down_events_val * -1, fgseaResdown,
+  gseaParam = 0.5
+)
+```
+
+
+```{r}
+edge_genes <- fgseaResdown[ES > 0][head(order(pval), n = 5), ]$leadingEdge
+names(edge_genes) <- fgseaResdown[ES > 0][head(order(pval), n = 5), ]$pathway
+
+(edge_genes)
+```
+
+## Hallmark genes 
+
+```{r}
+BP_db <- msigdbr(
+  species = "Homo sapiens",
+  category = "H"
+)
+
+fgsea_sets <- BP_db %>% split(x = .$gene_symbol, f = .$gs_name)
+
+fgseaResdown <- fgsea(fgsea_sets,
+  stats = down_events_val, minSize = 7,
+  maxSize = 500, nproc = 1,
+  eps = 0
+)
+
+fgseaResup <- fgsea(fgsea_sets,
+  stats = up_events_val, scoreType = "pos", minSize = 7,
+  maxSize = 500, nproc = 1,
+  eps = 0
+)
+```
+
+
+```{r, fig.width=10}
+topPathwaysUp <- fgseaResdown[ES > 0][head(order(pval), n = 5), pathway]
+topPathwaysDown <- fgseaResup[ES < 0][head(order(pval), n = 5), pathway]
+topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
+```
+
+
+Up regulated events: 
+
+```{r}
+plotGseaTable(fgsea_sets[topPathways], up_events_val, fgseaResup,
+  gseaParam = 0.5
+)
+```
+
+```{r}
+edge_genes <- fgseaResup[ES > 0][head(order(pval), n = 5), ]$leadingEdge
+names(edge_genes) <- fgseaResup[ES > 0][head(order(pval), n = 5), ]$pathway
+
+(edge_genes)
+```
+
+Downregulated events
+
+```{r}
+plotGseaTable(fgsea_sets[topPathways], down_events_val * -1, fgseaResdown,
+  gseaParam = 0.5
+)
+```
+
+
+```{r}
+edge_genes <- fgseaResdown[ES > 0][head(order(pval), n = 5), ]$leadingEdge
+names(edge_genes) <- fgseaResdown[ES > 0][head(order(pval), n = 5), ]$pathway
+
+(edge_genes)
+```
+
+
+
+
+```{r, fig.width=10, fig.height=7}
+tryCatch(
+  expr = {
+    enrplot <- EnrichmentPlot(res = enrich_out, db = "GO_BP", plot_type = "comparison")
+    enrplot
+  },
+  error = function(x) NULL
+)
+```
+
+
+
+# Significant spliced genes 
+
+```{r}
+library(reactable)
+reactable(
+  sig_events %>%
+    dplyr::select(
+      set, gene, pvalue, adj_pval, intron_junction,
+      Final_Verdict.w.skipping, group1.cluster.cov, group2.cluster.cov,
+      group2.psi, group1.psi, dPSI
+    ),
+  defaultColDef = colDef(
+    header = function(value) gsub(".", " ", value, fixed = TRUE),
+    cell = function(value) format(value, nsmall = 1),
+    align = "center",
+    minWidth = 70,
+    headerStyle = list(background = "#f7f7f8")
+  ),
+  columns = list(
+    gene = colDef(minWidth = 140) # overrides the default
+  ),
+  bordered = TRUE,
+  highlight = TRUE,
+  searchable = TRUE, minRows = 10
+)
+```
+
