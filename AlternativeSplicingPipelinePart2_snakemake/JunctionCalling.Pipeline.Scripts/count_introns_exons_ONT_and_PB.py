@@ -30,7 +30,18 @@ else:
     umi_tag = "XM"
 library_end = sys.argv[4] if len(sys.argv) > 4 else "3prime"
 
-def find_introns_single_cell(read_iterator, strandtag = "GS", cell_barcode_tag = cell_barcode_tag, umi_tag = umi_tag, total_reads=None):
+# Load valid barcodes from metadata file (arg 5)
+whitelist_file = sys.argv[5] if len(sys.argv) > 5 else None
+if whitelist_file:
+    with open(whitelist_file) as f:
+        next(f)  # skip header
+        valid_barcodes = set(line.split('\t')[0].strip().replace('-1', '') for line in f)
+    print(f"Loaded {len(valid_barcodes)} valid barcodes from whitelist")
+else:
+    valid_barcodes = None
+    print("No whitelist provided; all barcodes will be included")
+
+def find_introns_single_cell(read_iterator, strandtag = "GS", cell_barcode_tag = cell_barcode_tag, umi_tag = umi_tag, total_reads=None, valid_barcodes=None):
     intron_counts = {}
     exon_counts = {}
     cell_barcodes = set()
@@ -47,6 +58,9 @@ def find_introns_single_cell(read_iterator, strandtag = "GS", cell_barcode_tag =
         umi = robust_get_tag(r, umi_tag)
         umis[umi] += 1 # keep track of reads per umi
         if cell_barcode == ".": continue # unassigned read
+        # Filter to valid barcodes if whitelist provided
+        if valid_barcodes is not None and cell_barcode not in valid_barcodes:
+            continue
         cell_barcodes.add(cell_barcode) # useful for outputting data later
         first = True
         exon_start = base_position
@@ -81,7 +95,8 @@ try:
     total_reads = samfile.mapped + samfile.unmapped
 except AttributeError:
     total_reads = None
-intron_counts,exon_counts,cell_barcodes,umis = find_introns_single_cell(samfile.fetch(), strandtag = "GS", total_reads=total_reads)
+    
+intron_counts,exon_counts,cell_barcodes,umis = find_introns_single_cell(samfile.fetch(), strandtag = "GS", total_reads=total_reads, valid_barcodes=valid_barcodes)
 for chrom_strand,r in intron_counts.items(): 
     print(chrom_strand,len(r))
 
