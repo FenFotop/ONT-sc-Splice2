@@ -90,7 +90,7 @@ print(cell.meta.files)
 ## Removing cell type and cell type pattern requirement - should I add in the permutation group requirement and only include cell
 for (file in cell.meta.files) {
   id <- gsub("_metadata.txt", "", file)
-  cell.meta <- as.data.frame(read.table(file, stringsAsFactors = F, sep = "\t"))
+  cell.meta <- as.data.frame(read.table(file, stringsAsFactors = F, header = TRUE, fill = TRUE, sep = "\t"))
   # print(cell.meta[1:5,])
   cell.meta <- cell.meta[, c(cell.groups.column, comp.groups.column)]
   print("Removing Pattern on cell barcode")
