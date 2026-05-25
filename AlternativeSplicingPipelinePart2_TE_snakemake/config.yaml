@@ -1,0 +1,20 @@
+WORKDIR:
+  "/path/to/your/workdir"
+RUN_FILES:
+  "path/to/snakemake/pipeline/JunctionCalling.Pipeline.Scripts"
+SICERLORE_VERSION:
+  "2.1"
+SAMPLES:
+  - "SAMPLENAME"
+JOB_NAME:
+  "snakemake_part2"
+OUTPUTDIR:
+  "splicing_runs_folder"
+METADATADIR:
+  "/sample_metadata_ont/"
+LIBRARY_TYPE:
+  "PB"
+LIBRARY_END:
+  "5prime" #or 3prime
+TE_BED:
+  "NULL"  # path to RepeatMasker BED (chr,start,end,te_name,...); "NULL" skips TE annotation

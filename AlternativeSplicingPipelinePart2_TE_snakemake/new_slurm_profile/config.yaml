@@ -1,0 +1,32 @@
+executor: cluster-generic
+
+default-resources:
+  - mem_mb=50000
+  - runtime=7200
+
+cluster-generic-submit-cmd:
+  sbatch
+    --cpus-per-task=12
+    --mem={resources.mem_mb}
+    --time={resources.runtime}
+    --partition=cpu
+    --job-name={rule}.{jobid}
+    --output=logs/{rule}/{rule}.{jobid}.out
+    --error=logs/{rule}/{rule}.{jobid}.err
+
+max-jobs-per-second: 10
+max-status-checks-per-second: 1
+local-cores: 1
+latency-wait: 60
+jobs: 20 # Check what the max is
+keep-going: True
+rerun-incomplete: True
+printshellcmds: True
+  
+set-resources:
+  intron_anno:
+    mem_mb: 100000
+  exon_anno:
+    mem_mb: 100000   
+  ri_anno:
+    mem_mb: 100000   
